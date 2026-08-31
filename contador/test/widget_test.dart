@@ -11,20 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:contador/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('Finance dashboard loads and shows its main actions', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Controle financeiro'), findsOneWidget);
+    expect(find.text('Saldo total'), findsOneWidget);
+    expect(find.text('Receita'), findsOneWidget);
+    expect(find.text('Despesa'), findsOneWidget);
+    expect(find.text('Reset'), findsOneWidget);
   });
 }
