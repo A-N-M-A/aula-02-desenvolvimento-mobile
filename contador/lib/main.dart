@@ -118,7 +118,7 @@ class FinanceTransaction {
       amount: (map['amount'] as num?)?.toDouble() ?? 0,
       isIncome: map['isIncome'] as bool? ?? false,
       date: map['date']?.toString() ?? 'Hoje',
-      color: Color((map['color'] as num?)?.toInt() ?? const Color(0xFF4F46E5).value),
+      color: Color((map['color'] as num?)?.toInt() ?? const Color(0xFF4F46E5).toARGB32()),
     );
   }
 
@@ -130,7 +130,7 @@ class FinanceTransaction {
       'amount': amount,
       'isIncome': isIncome,
       'date': date,
-      'color': color.value,
+      'color': color.toARGB32(),
     };
   }
 }
@@ -188,7 +188,7 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
 
   String get _balanceText => 'R\$ ${_balance.toStringAsFixed(0)}';
 
-  List<_CategorySummary> get _chartData {
+  List<ChartCategoryData> get _chartData {
     final totals = <String, double>{};
     for (final transaction in _transactions) {
       if (!transaction.isIncome) {
@@ -197,11 +197,11 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
       }
     }
 
-    final items = <_CategorySummary>[];
+    final items = <ChartCategoryData>[];
     for (final category in _categories) {
       final total = totals[category.name] ?? 0;
       if (total > 0) {
-        items.add(_CategorySummary(category.name, total, category.color));
+        items.add(ChartCategoryData(category.name, total, category.color));
       }
     }
     return items;
@@ -736,10 +736,18 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
   }
 }
 
+class ChartCategoryData {
+  const ChartCategoryData(this.name, this.value, this.color);
+
+  final String name;
+  final double value;
+  final Color color;
+}
+
 class DonutChartPainter extends CustomPainter {
   const DonutChartPainter(this.items, this.total);
 
-  final List<_CategorySummary> items;
+  final List<ChartCategoryData> items;
   final double total;
 
   @override
