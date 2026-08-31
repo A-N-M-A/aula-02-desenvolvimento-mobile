@@ -912,14 +912,6 @@ class _Category {
   final double limit;
 }
 
-class _CategorySummary {
-  const _CategorySummary(this.name, this.value, this.color);
-
-  final String name;
-  final double value;
-  final Color color;
-}
-
 class AddTransactionPage extends StatefulWidget {
   const AddTransactionPage({super.key});
 
