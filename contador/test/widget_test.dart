@@ -11,13 +11,16 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:contador/main.dart';
 
 void main() {
-  testWidgets('Finance dashboard loads and shows its main actions', (WidgetTester tester) async {
+  testWidgets('Finance dashboard loads and shows banking features', (WidgetTester tester) async {
     await Hive.initFlutter();
     await FinanceStorage.init();
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('Controle financeiro'), findsOneWidget);
     expect(find.text('Saldo total'), findsOneWidget);
+    expect(find.text('Principal'), findsOneWidget);
+    expect(find.text('Mês atual'), findsOneWidget);
+    expect(find.text('Recorrentes'), findsOneWidget);
     expect(find.text('Receita'), findsOneWidget);
     expect(find.text('Despesa'), findsOneWidget);
     expect(find.text('Reset'), findsOneWidget);
