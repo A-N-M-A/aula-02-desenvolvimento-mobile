@@ -9,33 +9,31 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF7C3AED),
-        brightness: Brightness.dark,
-      ),
-      useMaterial3: true,
-      scaffoldBackgroundColor: const Color(0xFF0C1220),
-      fontFamily: 'Roboto',
-    );
-
     return MaterialApp(
-      title: 'Finance Counter',
+      title: 'Contador Apple',
       debugShowCheckedModeBanner: false,
-      theme: theme,
-      home: const FinanceCounterPage(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF5B7CFA),
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FF),
+        fontFamily: 'Roboto',
+      ),
+      home: const CounterHomePage(),
     );
   }
 }
 
-class FinanceCounterPage extends StatefulWidget {
-  const FinanceCounterPage({super.key});
+class CounterHomePage extends StatefulWidget {
+  const CounterHomePage({super.key});
 
   @override
-  State<FinanceCounterPage> createState() => _FinanceCounterPageState();
+  State<CounterHomePage> createState() => _CounterHomePageState();
 }
 
-class _FinanceCounterPageState extends State<FinanceCounterPage> {
+class _CounterHomePageState extends State<CounterHomePage> {
   int _counter = 0;
 
   void _incrementCounter() {
@@ -50,35 +48,26 @@ class _FinanceCounterPageState extends State<FinanceCounterPage> {
     setState(() => _counter = 0);
   }
 
-  String get _formattedValue => 'R\$ ${_counter.toString()},00';
-
-  Widget _buildActionButton(
+  Widget _buildFab(
     IconData icon,
     VoidCallback onPressed,
-    Color color,
+    Color background,
+    Color iconColor,
   ) {
-    return Expanded(
-      child: Container(
-        height: 62,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Material(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: onPressed,
-            child: Center(
-              child: Icon(icon, color: Colors.white, size: 30),
-            ),
+    return AnimatedScale(
+      scale: 1,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOutBack,
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 72,
+            height: 72,
+            child: Icon(icon, color: iconColor, size: 30),
           ),
         ),
       ),
@@ -87,149 +76,143 @@ class _FinanceCounterPageState extends State<FinanceCounterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF111827), Color(0xFF1E1B4B)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF7F9FF), Color(0xFFEAF0FF)],
           ),
         ),
         child: SafeArea(
           child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 430),
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(32),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      blurRadius: 28,
-                      offset: const Offset(0, 18),
-                    ),
-                  ],
-                ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF8B5CF6), Color(0xFF22D3EE)],
-                            ),
-                          ),
-                          child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
-                        ),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Carteira',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white70,
-                              ),
-                            ),
-                            Text(
-                              'Nexus Pay',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 26),
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1F2937), Color(0xFF111827)],
-                        ),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        color: Colors.white.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Saldo disponível',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white60,
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colorScheme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: Icon(Icons.calculate_rounded, color: colorScheme.primary, size: 20),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(width: 10),
                           Text(
-                            _formattedValue,
-                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
+                            'Contador',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF34D399).withValues(alpha: 0.16),
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                child: const Text(
-                                  'Estável',
-                                  style: TextStyle(
-                                    color: Color(0xFF6EE7B7),
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                'Última atualização agora',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.white54,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        _buildActionButton(Icons.remove_rounded, _decrementCounter, const Color(0xFFF59E0B)),
-                        const SizedBox(width: 16),
-                        _buildActionButton(Icons.refresh_rounded, _resetCounter, const Color(0xFF60A5FA)),
-                        const SizedBox(width: 16),
-                        _buildActionButton(Icons.add_rounded, _incrementCounter, const Color(0xFF34D399)),
-                      ],
+                    const SizedBox(height: 28),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 26,
+                            offset: const Offset(0, 18),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Valor atual',
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 280),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              '$_counter',
+                              key: ValueKey<int>(_counter),
+                              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _counter == 1 ? 'clique registrado' : 'cliques registrados',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 30),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: _StatCard(label: 'Movimentos', value: '$_counter', color: const Color(0xFF8B5CF6)),
+                        _buildFab(
+                          Icons.remove_rounded,
+                          _decrementCounter,
+                          const Color(0xFFFDE68A),
+                          const Color(0xFF7C4D00),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _StatCard(label: 'Meta', value: '70%', color: const Color(0xFF22D3EE)),
+                        const SizedBox(width: 20),
+                        _buildFab(
+                          Icons.refresh_rounded,
+                          _resetCounter,
+                          const Color(0xFFE0E7FF),
+                          const Color(0xFF3730A3),
+                        ),
+                        const SizedBox(width: 20),
+                        _buildFab(
+                          Icons.add_rounded,
+                          _incrementCounter,
+                          const Color(0xFFBBF7D0),
+                          const Color(0xFF166534),
                         ),
                       ],
                     ),
@@ -239,49 +222,6 @@ class _FinanceCounterPageState extends State<FinanceCounterPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.white60,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }
