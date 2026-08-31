@@ -39,9 +39,11 @@ class FinanceStorage {
 
   static Future<void> init() async {
     if (!Hive.isBoxOpen(_boxName)) {
-      await Hive.initFlutter();
+      _box = await Hive.openBox(_boxName);
+    } else {
+      _box = Hive.box(_boxName);
     }
-    _box = await Hive.openBox(_boxName);
+
     if (!_box.containsKey(_key)) {
       await _box.put(
         _key,
@@ -54,6 +56,7 @@ class FinanceStorage {
             'isIncome': true,
             'date': 'Hoje',
             'color': const Color(0xFF10B981).toARGB32(),
+            'isRecurring': false,
           },
           {
             'id': 'default_2',
@@ -63,6 +66,7 @@ class FinanceStorage {
             'isIncome': false,
             'date': 'Hoje',
             'color': const Color(0xFF10B981).toARGB32(),
+            'isRecurring': false,
           },
           {
             'id': 'default_3',
@@ -72,8 +76,19 @@ class FinanceStorage {
             'isIncome': false,
             'date': 'Ontem',
             'color': const Color(0xFF7C3AED).toARGB32(),
+            'isRecurring': true,
           },
-        },
+          {
+            'id': 'default_4',
+            'title': 'Streaming',
+            'category': 'Lazer',
+            'amount': 39.9,
+            'isIncome': false,
+            'date': '10/08',
+            'color': const Color(0xFFF59E0B).toARGB32(),
+            'isRecurring': true,
+          },
+        ],
       );
     }
   }
@@ -105,6 +120,7 @@ class FinanceTransaction {
     required this.isIncome,
     required this.date,
     required this.color,
+    this.isRecurring = false,
   });
 
   final String id;
@@ -114,6 +130,7 @@ class FinanceTransaction {
   final bool isIncome;
   final String date;
   final Color color;
+  final bool isRecurring;
 
   factory FinanceTransaction.fromMap(Map<String, dynamic> map) {
     return FinanceTransaction(
@@ -124,6 +141,7 @@ class FinanceTransaction {
       isIncome: map['isIncome'] as bool? ?? false,
       date: map['date']?.toString() ?? 'Hoje',
       color: Color((map['color'] as num?)?.toInt() ?? const Color(0xFF4F46E5).toARGB32()),
+      isRecurring: map['isRecurring'] as bool? ?? false,
     );
   }
 
@@ -136,6 +154,7 @@ class FinanceTransaction {
       'isIncome': isIncome,
       'date': date,
       'color': color.toARGB32(),
+      'isRecurring': isRecurring,
     };
   }
 }
@@ -156,8 +175,63 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
     const _Category('Educação', Icons.school_rounded, Color(0xFFEC4899), 500),
   ];
 
+  final List<_AccountTab> _accounts = [
+    const _AccountTab('Principal', 6825.40, Color(0xFF4F46E5)),
+    const _AccountTab('Poupança', 14820.10, Color(0xFF10B981)),
+    const _AccountTab('Cartão', 1800.00, Color(0xFFF59E0B)),
+  ];
+
+  final List<String> _monthFilters = ['Mês atual', 'Mês anterior', 'Todos'];
+
   List<FinanceTransaction> _transactions = [];
   int _selectedCategoryIndex = 0;
+  int _selectedAccountIndex = 0;
+  int _selectedMonthFilterIndex = 0;
+
+  String get _selectedAccountName => _accounts[_selectedAccountIndex].name;
+  String get _selectedMonthFilter => _monthFilters[_selectedMonthFilterIndex];
+
+  List<FinanceTransaction> get _visibleTransactions {
+    final now = DateTime.now();
+    final month = now.month;
+    final year = now.year;
+    final previousMonth = month == 1 ? DateTime(year - 1, 12) : DateTime(year, month - 1);
+
+    return _transactions.where((transaction) {
+      final normalizedDate = transaction.date.toLowerCase();
+      final parsedDate = _parseTransactionDate(transaction.date);
+
+      switch (_selectedMonthFilter) {
+        case 'Mês atual':
+          if (parsedDate == null) {
+            return normalizedDate.contains('hoje') || normalizedDate.contains('ontem') || normalizedDate.contains('${now.day.toString()}/');
+          }
+          return parsedDate.year == year && parsedDate.month == month;
+        case 'Mês anterior':
+          if (parsedDate == null) {
+            return false;
+          }
+          return parsedDate.year == previousMonth.year && parsedDate.month == previousMonth.month;
+        case 'Todos':
+        default:
+          return true;
+      }
+    }).toList();
+  }
+
+  List<FinanceTransaction> get _recurringTransactions {
+    return _transactions.where((transaction) => transaction.isRecurring).toList();
+  }
+
+  DateTime? _parseTransactionDate(String value) {
+    final match = RegExp(r'(\d{1,2})/(\d{1,2})(?:/(\d{4}))?').firstMatch(value);
+    if (match == null) return null;
+
+    final day = int.parse(match.group(1)!);
+    final month = int.parse(match.group(2)!);
+    final year = int.parse(match.group(3) ?? DateTime.now().year.toString());
+    return DateTime(year, month, day);
+  }
 
   @override
   void initState() {
@@ -220,8 +294,9 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
       category: category.name,
       amount: 150,
       isIncome: true,
-      date: 'Agora',
+      date: '${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}',
       color: category.color,
+      isRecurring: false,
     );
     setState(() {
       _transactions.insert(0, transaction);
@@ -237,8 +312,9 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
       category: category.name,
       amount: 80,
       isIncome: false,
-      date: 'Agora',
+      date: '${DateTime.now().day.toString().padLeft(2, '0')}/${DateTime.now().month.toString().padLeft(2, '0')}',
       color: category.color,
+      isRecurring: false,
     );
     setState(() {
       _transactions.insert(0, transaction);
@@ -257,6 +333,7 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
           isIncome: true,
           date: 'Hoje',
           color: Color(0xFF10B981),
+          isRecurring: false,
         ),
         const FinanceTransaction(
           id: 'default_2',
@@ -266,6 +343,7 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
           isIncome: false,
           date: 'Hoje',
           color: Color(0xFF10B981),
+          isRecurring: false,
         ),
         const FinanceTransaction(
           id: 'default_3',
@@ -275,6 +353,17 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
           isIncome: false,
           date: 'Ontem',
           color: Color(0xFF7C3AED),
+          isRecurring: true,
+        ),
+        const FinanceTransaction(
+          id: 'default_4',
+          title: 'Streaming',
+          category: 'Lazer',
+          amount: 39.9,
+          isIncome: false,
+          date: '10/08',
+          color: Color(0xFFF59E0B),
+          isRecurring: true,
         ),
       ];
     });
@@ -301,6 +390,9 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final chartData = _chartData;
     final totalChart = chartData.fold<double>(0, (sum, item) => sum + item.value);
+    final filteredTransactions = _visibleTransactions;
+    final recurringTransactions = _recurringTransactions;
+    final selectedAccount = _accounts[_selectedAccountIndex];
 
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
@@ -368,6 +460,118 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Contas',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 86,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _accounts.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final account = _accounts[index];
+                          final isSelected = index == _selectedAccountIndex;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() => _selectedAccountIndex = index);
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => AccountDetailPage(
+                                    accountName: account.name,
+                                    balance: account.balance,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 150,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isSelected ? account.color : Colors.white.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: account.color.withValues(alpha: isSelected ? 0.18 : 0.08),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    account.name,
+                                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      color: isSelected ? Colors.white : colorScheme.onSurface,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    'R\$ ${account.balance.toStringAsFixed(2).replaceAll('.', ',')}',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      color: isSelected ? Colors.white : colorScheme.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: _monthFilters.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final label = entry.value;
+                                final selected = index == _selectedMonthFilterIndex;
+                                return Expanded(
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _selectedMonthFilterIndex = index),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: selected ? colorScheme.primary : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        label,
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                          color: selected ? Colors.white : colorScheme.onSurface,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 20),
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -411,6 +615,14 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            selectedAccount.name,
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Colors.white70,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           AnimatedSwitcher(
@@ -481,6 +693,40 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Recorrentes',
+                                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${recurringTransactions.length} itens',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.repeat_rounded, color: colorScheme.primary),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -666,7 +912,7 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ..._transactions.map((transaction) {
+                    ...filteredTransactions.map((transaction) {
                       final sign = transaction.isIncome ? '+' : '-';
                       final amountText = '$sign R\$ ${transaction.amount.abs().toStringAsFixed(0)}';
 
@@ -917,6 +1163,100 @@ class _Category {
   final double limit;
 }
 
+class _AccountTab {
+  const _AccountTab(this.name, this.balance, this.color);
+
+  final String name;
+  final double balance;
+  final Color color;
+}
+
+class AccountDetailPage extends StatelessWidget {
+  const AccountDetailPage({
+    super.key,
+    required this.accountName,
+    required this.balance,
+  });
+
+  final String accountName;
+  final double balance;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(accountName),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF4F46E5), Color(0xFF6D5EF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Saldo disponível',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'R\$ ${balance.toStringAsFixed(2).replaceAll('.', ',')}',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Resumo',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: const [
+                  Expanded(
+                    child: _SummaryPill(
+                      label: 'Entradas',
+                      value: 'R\$ 4.200',
+                      color: Color(0xFF8EF0B2),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: _SummaryPill(
+                      label: 'Saídas',
+                      value: 'R\$ 1.500',
+                      color: Color(0xFFFCC2C2),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class AddTransactionPage extends StatefulWidget {
   const AddTransactionPage({super.key});
 
@@ -931,6 +1271,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   String _selectedCategory = 'Moradia';
   bool _isIncome = false;
+  bool _isRecurring = false;
   DateTime _selectedDate = DateTime.now();
 
   final List<String> _categories = [
@@ -979,6 +1320,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       isIncome: _isIncome,
       date: '${_selectedDate.day}/${_selectedDate.month}',
       color: color,
+      isRecurring: _isRecurring,
     );
 
     Navigator.of(context).pop(transaction);
@@ -1091,6 +1433,18 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             ],
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 18),
+                      CheckboxListTile(
+                        value: _isRecurring,
+                        onChanged: (value) {
+                          setState(() {
+                            _isRecurring = value ?? false;
+                          });
+                        },
+                        title: const Text('Transação recorrente'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
                       ),
                       const SizedBox(height: 24),
                       SizedBox(
