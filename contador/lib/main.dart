@@ -1,6 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
-void main() {
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await FinanceStorage.init();
   runApp(const MyApp());
 }
 
@@ -26,6 +32,109 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class FinanceStorage {
+  static const String _boxName = 'finance_box';
+  static const String _key = 'transactions';
+  static late Box _box;
+
+  static Future<void> init() async {
+    _box = await Hive.openBox(_boxName);
+    if (!_box.containsKey(_key)) {
+      await _box.put(
+        _key,
+        [
+          {
+            'id': 'default_1',
+            'title': 'Salário',
+            'category': 'Renda',
+            'amount': 4200.0,
+            'isIncome': true,
+            'date': 'Hoje',
+            'color': const Color(0xFF10B981).value,
+          },
+          {
+            'id': 'default_2',
+            'title': 'Mercado',
+            'category': 'Alimentação',
+            'amount': 320.0,
+            'isIncome': false,
+            'date': 'Hoje',
+            'color': const Color(0xFF10B981).value,
+          },
+          {
+            'id': 'default_3',
+            'title': 'Aluguel',
+            'category': 'Moradia',
+            'amount': 1200.0,
+            'isIncome': false,
+            'date': 'Ontem',
+            'color': const Color(0xFF7C3AED).value,
+          },
+        },
+      )
+    }
+  }
+
+  Future<List<FinanceTransaction>> readTransactions() async {
+    final raw = _box.get(_key, defaultValue: <Map<String, dynamic>>[]);
+    final items = raw as List;
+    return items
+        .map((item) => FinanceTransaction.fromMap(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<void> writeTransactions(List<FinanceTransaction> transactions) async {
+    await _box.put(
+      _key,
+      transactions.map((transaction) => transaction.toMap()).toList(),
+    );
+  }
+}
+
+class FinanceTransaction {
+  const FinanceTransaction({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.amount,
+    required this.isIncome,
+    required this.date,
+    required this.color,
+  });
+
+  final String id;
+  final String title;
+  final String category;
+  final double amount;
+  final bool isIncome;
+  final String date;
+  final Color color;
+
+  factory FinanceTransaction.fromMap(Map<String, dynamic> map) {
+    return FinanceTransaction(
+      id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      title: map['title']?.toString() ?? 'Transação',
+      category: map['category']?.toString() ?? 'Outros',
+      amount: (map['amount'] as num?)?.toDouble() ?? 0,
+      isIncome: map['isIncome'] as bool? ?? false,
+      date: map['date']?.toString() ?? 'Hoje',
+      color: Color((map['color'] as num?)?.toInt() ?? const Color(0xFF4F46E5).value),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'category': category,
+      'amount': amount,
+      'isIncome': isIncome,
+      'date': date,
+      'color': color.value,
+    };
+  }
+}
+
 class FinanceDashboardPage extends StatefulWidget {
   const FinanceDashboardPage({super.key});
 
@@ -34,23 +143,34 @@ class FinanceDashboardPage extends StatefulWidget {
 }
 
 class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
+  final List<_Category> _categories = [
+    const _Category('Moradia', Icons.home_rounded, Color(0xFF7C3AED), 1200),
+    const _Category('Alimentação', Icons.fastfood_rounded, Color(0xFF10B981), 700),
+    const _Category('Transporte', Icons.directions_car_rounded, Color(0xFF0EA5E9), 500),
+    const _Category('Lazer', Icons.sports_esports_rounded, Color(0xFFF59E0B), 400),
+    const _Category('Educação', Icons.school_rounded, Color(0xFFEC4899), 500),
+  ];
+
+  List<FinanceTransaction> _transactions = [];
   int _selectedCategoryIndex = 0;
 
-  final List<_Category> _categories = [
-    _Category('Moradia', Icons.home_rounded, const Color(0xFF7C3AED), 850, 1200),
-    _Category('Alimentação', Icons.fastfood_rounded, const Color(0xFF10B981), 420, 700),
-    _Category('Transporte', Icons.directions_car_rounded, const Color(0xFF0EA5E9), 260, 500),
-    _Category('Lazer', Icons.sports_esports_rounded, const Color(0xFFF59E0B), 180, 400),
-    _Category('Educação', Icons.school_rounded, const Color(0xFFEC4899), 210, 500),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
 
-  final List<_Transaction> _transactions = [
-    _Transaction('Salário', 'Renda', 4200, true, 'Hoje', const Color(0xFF10B981)),
-    _Transaction('Mercado', 'Alimentação', -320, false, 'Hoje', const Color(0xFF10B981)),
-    _Transaction('Aluguel', 'Moradia', -1200, false, 'Ontem', const Color(0xFF7C3AED)),
-    _Transaction('Uber', 'Transporte', -90, false, 'Ontem', const Color(0xFF0EA5E9)),
-    _Transaction('Cinema', 'Lazer', -85, false, 'Seg', const Color(0xFFF59E0B)),
-  ];
+  Future<void> _loadTransactions() async {
+    final transactions = await FinanceStorage.readTransactions();
+    if (!mounted) return;
+    setState(() {
+      _transactions = transactions;
+    });
+  }
+
+  Future<void> _saveTransactions() async {
+    await FinanceStorage.writeTransactions(_transactions);
+  }
 
   double get _totalIncome {
     return _transactions
@@ -68,55 +188,123 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
 
   String get _balanceText => 'R\$ ${_balance.toStringAsFixed(0)}';
 
+  List<_CategorySummary> get _chartData {
+    final totals = <String, double>{};
+    for (final transaction in _transactions) {
+      if (!transaction.isIncome) {
+        totals[transaction.category] =
+            (totals[transaction.category] ?? 0) + transaction.amount.abs();
+      }
+    }
+
+    final items = <_CategorySummary>[];
+    for (final category in _categories) {
+      final total = totals[category.name] ?? 0;
+      if (total > 0) {
+        items.add(_CategorySummary(category.name, total, category.color));
+      }
+    }
+    return items;
+  }
+
   void _addIncome() {
     final category = _categories[_selectedCategoryIndex % _categories.length];
+    final transaction = FinanceTransaction(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: 'Renda extra',
+      category: category.name,
+      amount: 150,
+      isIncome: true,
+      date: 'Agora',
+      color: category.color,
+    );
     setState(() {
-      _transactions.insert(
-        0,
-        _Transaction(
-          'Renda extra', category.name,
-          150,
-          true,
-          'Agora',
-          category.color,
-        ),
-      );
+      _transactions.insert(0, transaction);
     });
+    _saveTransactions();
   }
 
   void _addExpense() {
     final category = _categories[_selectedCategoryIndex % _categories.length];
+    final transaction = FinanceTransaction(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: 'Despesa em ${category.name}',
+      category: category.name,
+      amount: 80,
+      isIncome: false,
+      date: 'Agora',
+      color: category.color,
+    );
     setState(() {
-      _transactions.insert(
-        0,
-        _Transaction(
-          'Despesa em ${category.name}',
-          category.name,
-          -80,
-          false,
-          'Agora',
-          category.color,
-        ),
-      );
+      _transactions.insert(0, transaction);
     });
+    _saveTransactions();
   }
 
   void _resetData() {
     setState(() {
-      _transactions.clear();
-      _transactions.addAll([
-        _Transaction('Salário', 'Renda', 4200, true, 'Hoje', const Color(0xFF10B981)),
-        _Transaction('Mercado', 'Alimentação', -320, false, 'Hoje', const Color(0xFF10B981)),
-        _Transaction('Aluguel', 'Moradia', -1200, false, 'Ontem', const Color(0xFF7C3AED)),
-      ]);
+      _transactions = [
+        const FinanceTransaction(
+          id: 'default_1',
+          title: 'Salário',
+          category: 'Renda',
+          amount: 4200,
+          isIncome: true,
+          date: 'Hoje',
+          color: Color(0xFF10B981),
+        ),
+        const FinanceTransaction(
+          id: 'default_2',
+          title: 'Mercado',
+          category: 'Alimentação',
+          amount: 320,
+          isIncome: false,
+          date: 'Hoje',
+          color: Color(0xFF10B981),
+        ),
+        const FinanceTransaction(
+          id: 'default_3',
+          title: 'Aluguel',
+          category: 'Moradia',
+          amount: 1200,
+          isIncome: false,
+          date: 'Ontem',
+          color: Color(0xFF7C3AED),
+        ),
+      ];
     });
+    _saveTransactions();
+  }
+
+  Future<void> _openAddTransactionScreen() async {
+    final result = await Navigator.of(context).push<FinanceTransaction>(
+      MaterialPageRoute(
+        builder: (_) => const AddTransactionPage(),
+      ),
+    );
+
+    if (result == null) return;
+
+    setState(() {
+      _transactions.insert(0, result);
+    });
+    await _saveTransactions();
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final chartData = _chartData;
+    final totalChart = chartData.fold<double>(0, (sum, item) => sum + item.value);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddTransactionScreen,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Nova transação'),
+      ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -393,6 +581,77 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
                         },
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 14,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Despesas por categoria',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (chartData.isEmpty)
+                            const Text('Sem despesas registradas.')
+                          else ...[
+                            SizedBox(
+                              height: 170,
+                              child: CustomPaint(
+                                painter: DonutChartPainter(chartData, totalChart),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...chartData.map((item) {
+                              final share = totalChart == 0 ? 0.0 : item.value / totalChart;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: item.color,
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '${item.name} (${(share * 100).toStringAsFixed(0)}%)',
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                      ),
+                                    ),
+                                    Text(
+                                      'R\$ ${item.value.toStringAsFixed(0)}',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: item.color,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 22),
                     Text(
                       'Transações recentes',
@@ -474,6 +733,70 @@ class _FinanceDashboardPageState extends State<FinanceDashboardPage> {
         ),
       ),
     );
+  }
+}
+
+class DonutChartPainter extends CustomPainter {
+  const DonutChartPainter(this.items, this.total);
+
+  final List<_CategorySummary> items;
+  final double total;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) * 0.32;
+    final ringWidth = radius * 0.52;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    double startAngle = -math.pi / 2;
+    for (final item in items) {
+      final sweep = total == 0 ? 0.0 : (item.value / total) * (math.pi * 2);
+      final paint = Paint()
+        ..color = item.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = ringWidth
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawArc(rect, startAngle, sweep, false, paint);
+      startAngle += sweep;
+    }
+
+    final innerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius - ringWidth * 0.75, innerPaint);
+
+    final labelPainter = TextPainter(
+      text: TextSpan(
+        text: 'R\$',
+        style: const TextStyle(
+          color: Colors.black54,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    labelPainter.paint(canvas, Offset(center.dx - 8, center.dy - 18));
+
+    final totalPainter = TextPainter(
+      text: TextSpan(
+        text: total.toStringAsFixed(0),
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    totalPainter.paint(canvas, Offset(center.dx - 18, center.dy + 4));
+  }
+
+  @override
+  bool shouldRepaint(covariant DonutChartPainter oldDelegate) {
+    return oldDelegate.items != items || oldDelegate.total != total;
   }
 }
 
@@ -573,29 +896,220 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _Category {
-  const _Category(this.name, this.icon, this.color, this.spent, this.limit);
+  const _Category(this.name, this.icon, this.color, this.limit);
 
   final String name;
   final IconData icon;
   final Color color;
-  final double spent;
   final double limit;
 }
 
-class _Transaction {
-  const _Transaction(
-    this.title,
-    this.category,
-    this.amount,
-    this.isIncome,
-    this.date,
-    this.color,
-  );
+class _CategorySummary {
+  const _CategorySummary(this.name, this.value, this.color);
 
-  final String title;
-  final String category;
-  final double amount;
-  final bool isIncome;
-  final String date;
+  final String name;
+  final double value;
   final Color color;
+}
+
+class AddTransactionPage extends StatefulWidget {
+  const AddTransactionPage({super.key});
+
+  @override
+  State<AddTransactionPage> createState() => _AddTransactionPageState();
+}
+
+class _AddTransactionPageState extends State<AddTransactionPage> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  String _selectedCategory = 'Moradia';
+  bool _isIncome = false;
+  DateTime _selectedDate = DateTime.now();
+
+  final List<String> _categories = [
+    'Moradia',
+    'Alimentação',
+    'Transporte',
+    'Lazer',
+    'Educação',
+    'Renda',
+  ];
+
+  Future<void> _pickDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
+  void _saveTransaction() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final title = _titleController.text.trim();
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+    final color = {
+      'Moradia': const Color(0xFF7C3AED),
+      'Alimentação': const Color(0xFF10B981),
+      'Transporte': const Color(0xFF0EA5E9),
+      'Lazer': const Color(0xFFF59E0B),
+      'Educação': const Color(0xFFEC4899),
+      'Renda': const Color(0xFF16A34A),
+    }[_selectedCategory] ?? const Color(0xFF4F46E5);
+
+    final transaction = FinanceTransaction(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: title,
+      category: _selectedCategory,
+      amount: _isIncome ? amount : -amount,
+      isIncome: _isIncome,
+      date: '${_selectedDate.day}/${_selectedDate.month}',
+      color: color,
+    );
+
+    Navigator.of(context).pop(transaction);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Nova transação'),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Column(
+                    children: [
+                      ToggleButtons(
+                        isSelected: [_isIncome == false, _isIncome == true],
+                        onPressed: (index) {
+                          setState(() {
+                            _isIncome = index == 1;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        constraints: const BoxConstraints(minHeight: 42, minWidth: 120),
+                        children: const [
+                          Text('Despesa'),
+                          Text('Receita'),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Título',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Informe um título';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      TextFormField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Valor',
+                          prefixText: 'R\$ ',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Informe um valor';
+                          }
+                          final parsed = double.tryParse(value.replaceAll(',', '.'));
+                          if (parsed == null || parsed <= 0) {
+                            return 'Valor inválido';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                      DropdownButtonFormField<String>(
+                        value: _selectedCategory,
+                        items: _categories.map((category) {
+                          return DropdownMenuItem<String>(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedCategory = value;
+                            });
+                          }
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Categoria',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      InkWell(
+                        onTap: _pickDate,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Data',
+                            border: OutlineInputBorder(),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}'),
+                              const Icon(Icons.calendar_today_rounded),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _saveTransaction,
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('Salvar transação'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
