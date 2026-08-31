@@ -38,6 +38,9 @@ class FinanceStorage {
   static late Box _box;
 
   static Future<void> init() async {
+    if (!Hive.isBoxOpen(_boxName)) {
+      await Hive.initFlutter();
+    }
     _box = await Hive.openBox(_boxName);
     if (!_box.containsKey(_key)) {
       await _box.put(
@@ -50,7 +53,7 @@ class FinanceStorage {
             'amount': 4200.0,
             'isIncome': true,
             'date': 'Hoje',
-            'color': const Color(0xFF10B981).value,
+            'color': const Color(0xFF10B981).toARGB32(),
           },
           {
             'id': 'default_2',
@@ -59,7 +62,7 @@ class FinanceStorage {
             'amount': 320.0,
             'isIncome': false,
             'date': 'Hoje',
-            'color': const Color(0xFF10B981).value,
+            'color': const Color(0xFF10B981).toARGB32(),
           },
           {
             'id': 'default_3',
@@ -68,14 +71,15 @@ class FinanceStorage {
             'amount': 1200.0,
             'isIncome': false,
             'date': 'Ontem',
-            'color': const Color(0xFF7C3AED).value,
+            'color': const Color(0xFF7C3AED).toARGB32(),
           },
         },
-      )
+      );
     }
   }
 
-  Future<List<FinanceTransaction>> readTransactions() async {
+  static Future<List<FinanceTransaction>> readTransactions() async {
+    await init();
     final raw = _box.get(_key, defaultValue: <Map<String, dynamic>>[]);
     final items = raw as List;
     return items
@@ -83,7 +87,8 @@ class FinanceStorage {
         .toList();
   }
 
-  Future<void> writeTransactions(List<FinanceTransaction> transactions) async {
+  static Future<void> writeTransactions(List<FinanceTransaction> transactions) async {
+    await init();
     await _box.put(
       _key,
       transactions.map((transaction) => transaction.toMap()).toList(),

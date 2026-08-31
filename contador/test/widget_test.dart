@@ -6,11 +6,14 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'package:contador/main.dart';
 
 void main() {
   testWidgets('Finance dashboard loads and shows its main actions', (WidgetTester tester) async {
+    await Hive.initFlutter();
+    await FinanceStorage.init();
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('Controle financeiro'), findsOneWidget);
